@@ -50,19 +50,11 @@ func main() {
 	cfg := readJSONConfig("config.json")
 
 	http.HandleFunc("/metadata/identity/oauth2/token", cfg.handlerTokenIssuance)
-	http.HandleFunc("/metadata/instance/compute", cfg.handleCompute)
-	http.HandleFunc("/metadata/instance/network", cfg.handleNetwork)
-	http.HandleFunc("/metadata/instance", cfg.handleMetadata)
-	http.HandleFunc("/", handlerDefault)
+	http.HandleFunc("/metadata/instance/compute", cfg.returnData(cfg.InstanceMetadata.ComputeMetadata))
+	http.HandleFunc("/metadata/instance/network", cfg.returnData(cfg.InstanceMetadata.NetworkMetadata))
+	http.HandleFunc("/metadata/instance", cfg.returnData(cfg.InstanceMetadata))
 
 	log.Fatal(http.ListenAndServe(fmt.Sprintf("%s:80", addr), nil))
-}
-
-// handler echoes the Path component of the requested URL.
-func handlerDefault(w http.ResponseWriter, r *http.Request) {
-	fmt.Printf("URL.Path = %q\n", r.URL.Path)
-	fmt.Printf("URL.Path = %v\n", r)
-	fmt.Fprintf(w, "URL.Path = %q\n", r.URL.Path)
 }
 
 func emittedErrorBecauseMissingMetadata(w http.ResponseWriter, r *http.Request) bool {
@@ -79,28 +71,15 @@ func emittedErrorBecauseMissingMetadata(w http.ResponseWriter, r *http.Request) 
 	return false
 }
 
-func handle(w http.ResponseWriter, r *http.Request, data interface{}) {
-	if emittedErrorBecauseMissingMetadata(w, r) {
-		return
+func (cfg *config) returnData(data interface{}) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if emittedErrorBecauseMissingMetadata(w, r) {
+			return
+		}
+		if err := json.NewEncoder(w).Encode(data); err != nil {
+			panic(err)
+		}
 	}
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		panic(err)
-	}
-}
-
-// func (cfg *config) returnData(func(cfg *config) interface{}) func(http.ResponseWriter, *http.Request) {
-// }
-
-func (cfg *config) handleCompute(w http.ResponseWriter, r *http.Request) {
-	handle(w, r, cfg.InstanceMetadata.ComputeMetadata)
-}
-
-func (cfg *config) handleNetwork(w http.ResponseWriter, r *http.Request) {
-	handle(w, r, cfg.InstanceMetadata.NetworkMetadata)
-}
-
-func (cfg *config) handleMetadata(w http.ResponseWriter, r *http.Request) {
-	handle(w, r, cfg.InstanceMetadata)
 }
 
 func (cfg *config) handlerTokenIssuance(w http.ResponseWriter, r *http.Request) {

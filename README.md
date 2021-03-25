@@ -8,18 +8,34 @@ The problem however is that developing 'locally' can be cumbersome, because the 
 
 For that to work, you need to bind that special IP address to one of your network interfaces. For example, on Windows, I run an administrative command prompt, and run this:
 
+Windows:
+
 ```batch
 netsh.exe interface ipv4 add address ^
     name="vEthernet (Default Switch)" ^
     address="169.254.169.254"
 ```
 
+Linux (Ubuntu):
+
+```sh
+sudo ifconfig eth0:1 169.254.169.254 netmask 255.255.255.0
+```
+
 To remove that binding, you can run this:
+
+Windows:
 
 ```batch
 netsh.exe interface ipv4 delete address ^
     name="vEthernet (Default Switch)" ^
     address="169.254.169.254"
+```
+
+Linux (Ubuntu):
+
+```sh
+sudo ifconfig eth0:1 del 169.254.169.254
 ```
 
 ## Configure the service
@@ -54,7 +70,7 @@ The application looks at a small config file, and exposes the file's information
 }
 ```
 
-Essentially, the `.metadata` part is exposed on 'http://169.254.169.254/metadata/instance/compute'... 
+Essentially, the `.metadata` part is exposed on 'http://169.254.169.254/metadata/instance/compute'...
 
 ## Managed user-assigned Identity
 
@@ -72,3 +88,57 @@ curl --request GET \
 ```
 
 Managed Identities can, by design, not be directly reachable on your developer laptop (unless we would proxy that REST call to a real Azure compute resource). To mimic that token endoint (`/metadata/identity/oauth2/token`), you can configure service principal credentials in the config file as well.
+
+## Build
+
+To build:
+
+Windows:
+
+```batch
+go build -o .\bin\server.exe server.go
+```
+
+Linux:
+
+```sh
+go build -o ./bin/server server.go
+```
+
+## Run
+
+Windows:
+
+```batch
+.\bind_imds_ip.cmd && .\bin\server.exe
+```
+
+Linux:
+
+```sh
+sudo -- sh -c './bind_imds_ip.sh && ./bin/server'
+```
+
+## Test
+
+To validate that the service is running correctly:
+
+Linux:
+
+```sh
+curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2020-09-01"
+```
+
+## Stop
+
+To stop, stop the running process, then:
+
+```batch
+.\release_imds_ip.cmd
+```
+
+Linux:
+
+```sh
+sudo ./release_imds_ip.sh
+```

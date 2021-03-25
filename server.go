@@ -58,7 +58,7 @@ func main() {
 }
 
 func emittedErrorBecauseMissingMetadata(w http.ResponseWriter, r *http.Request) bool {
-	if d := r.Header["Metadata"]; len(d) != 1 || d[0] != "true" {
+	if d := r.Header["Metadata"]; len(d) != 1 || !strings.EqualFold(d[0], "true") {
 		errorMessage := struct {
 			Message string `json:"error"`
 		}{Message: "Bad request. Required metadata header not specified"}

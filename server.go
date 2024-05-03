@@ -3,17 +3,18 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 )
 
-func readJSONConfig(filename string) *config {
-	file, _ := ioutil.ReadFile(filename)
-	var data config
+func readJSONConfig[T config | scheduledevents](filename string) *T {
+	file, _ := os.ReadFile(filename)
+	var data T
 	_ = json.Unmarshal([]byte(file), &data)
 	return &data
 }
@@ -47,12 +48,14 @@ func main() {
 	// curl -H Metadata:true "http://169.254.169.254/metadata/instance?api-version=2017-08-
 	// {"compute":{"azEnvironment":"AzurePublicCloud","customData":"","location":"westeurope","name":"v","offer":"UbuntuServer","osType":"Linux","placementGroupId":"","plan":{"name":"","product":"","publisher":""},"platformFaultDomain":"0","platformUpdateDomain":"0","provider":"Microsoft.Compute","publicKeys":[{"keyData":"ssh-rsa AAAAB3NzaC1yc2EAAAABJQAAAQEAk/ViUPrGp7KoJLuN2PgofgMyw7SN9zfLYFDDR0TRYa8cOvJlE8NdZYt6Oqa4aL/fslKr9bmlMCdawhZRL7sHccIIS0I0zG7iD15rQL3/Y5aZOf3ML+bebpSj+SE5OeHT9iobgsYpK8gq72d8tmZZAfKhx6fRJsgC2j2xXH/GveoZ5GkHnhJUYuYPmNjEb/PK7LT43XuP+E9Rderr3LPUTuBeGVW9do0HS7X8I2uTn0+BqgkZLOO4FCnSXxh1u6fuD++ZgOZVmB6Q1xEdHSA7LLnPkjDZqbWezLIh5cSdNPUW2JG7tMxQTAZzVoNMb6vAVsfslB16rqZQ21EdIq+0pw== chgeuer-dcos-1","path":"/home/chgeuer/.ssh/authorized_keys"}],"publisher":"Canonical","resourceGroupName":"spring","sku":"18.04-LTS","subscriptionId":"724467b5-bee4-484b-bf13-d6a5505d2b51","tags":"tag1:val2","version":"18.04.201905290","vmId":"c7619932-27e3-4a63-988c-460bd290ca55","vmScaleSetName":"","vmSize":"Standard_D2s_v3","zone":""},"network":{"interface":[{"ipv4":{"ipAddress":[{"privateIpAddress":"10.0.0.4","publicIpAddress":"13.81.2.149"}],"subnet":[{"address":"10.0.0.0","prefix":"24"}]},"ipv6":{"ipAddress":[]},"macAddress":"000D3A48FA8D"}]}}
 
-	cfg := readJSONConfig("config.json")
+	cfg := readJSONConfig[config]("config.json")
+	sEvents := readJSONConfig[scheduledevents]("scheduledEvents.json")
 
 	http.HandleFunc("/metadata/identity/oauth2/token", cfg.handlerTokenIssuance)
-	http.HandleFunc("/metadata/instance/compute", cfg.returnData(cfg.InstanceMetadata.ComputeMetadata))
-	http.HandleFunc("/metadata/instance/network", cfg.returnData(cfg.InstanceMetadata.NetworkMetadata))
-	http.HandleFunc("/metadata/instance", cfg.returnData(cfg.InstanceMetadata))
+	http.HandleFunc("/metadata/instance/compute", returnData(cfg.InstanceMetadata.ComputeMetadata))
+	http.HandleFunc("/metadata/instance/network", returnData(cfg.InstanceMetadata.NetworkMetadata))
+	http.HandleFunc("/metadata/instance", returnData(cfg.InstanceMetadata))
+	http.HandleFunc("/metadata/scheduledevents", returnData(sEvents))
 
 	log.Fatal(http.ListenAndServe(fmt.Sprintf("%s:80", addr), nil))
 }
@@ -71,7 +74,7 @@ func emittedErrorBecauseMissingMetadata(w http.ResponseWriter, r *http.Request) 
 	return false
 }
 
-func (cfg *config) returnData(data interface{}) func(http.ResponseWriter, *http.Request) {
+func returnData(data interface{}) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if emittedErrorBecauseMissingMetadata(w, r) {
 			return
@@ -131,7 +134,7 @@ func (cfg *config) handlerTokenIssuance(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	body, err := ioutil.ReadAll(response.Body)
+	body, err := io.ReadAll(response.Body)
 	if err != nil {
 		log.Fatal(err)
 		return
@@ -187,4 +190,19 @@ type config struct {
 			} `json:"interface"`
 		} `json:"network"`
 	} `json:"metadata"`
+}
+
+type scheduledevents struct {
+	DocumentIncarnation int `json:"DocumentIncarnation"`
+	Events              []struct {
+		EventID           string   `json:"EventId"`
+		EventStatus       string   `json:"EventStatus"`
+		EventType         string   `json:"EventType"`
+		ResourceType      string   `json:"ResourceType"`
+		Resources         []string `json:"Resources"`
+		NotBefore         string   `json:"NotBefore"`
+		Description       string   `json:"Description"`
+		EventSource       string   `json:"EventSource"`
+		DurationInSeconds int      `json:"DurationInSeconds"`
+	} `json:"Events"`
 }

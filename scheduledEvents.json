@@ -1,0 +1,18 @@
+{
+    "DocumentIncarnation":  1,
+    "Events":  [
+        {
+            "EventId":  "3799c4856bff-AFDC-4513-B24B-AA5F13A16123",
+            "EventStatus":  "Scheduled",
+            "EventType":  "Reboot",
+            "ResourceType":  "VirtualMachine",
+            "Resources":  [
+                              "examplevmname"
+                          ],
+            "NotBefore":  "Mon, 11 Apr 2022 22:26:58 GMT",
+            "Description":  "Virtual machine is being paused because of a memory-preserving Live Migration operation.",
+            "EventSource":  "Platform",
+            "DurationInSeconds":  5
+        }
+    ]
+}

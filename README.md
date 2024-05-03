@@ -18,8 +18,13 @@ netsh.exe interface ipv4 add address ^
 
 Linux (Ubuntu):
 
+ifconfig:
 ```sh
 sudo ifconfig eth0:1 169.254.169.254 netmask 255.255.255.0
+```
+ip:
+```sh
+sudo ip address add 169.254.169.254/255.255.255.0 dev eth0:1
 ```
 
 To remove that binding, you can run this:
@@ -34,8 +39,14 @@ netsh.exe interface ipv4 delete address ^
 
 Linux (Ubuntu):
 
+ifconfig
 ```sh
 sudo ifconfig eth0:1 del 169.254.169.254
+```
+
+ip
+```sh
+sudo ip address del 169.254.169.254/255.255.255.0 dev eth0:1
 ```
 
 ## Configure the service
